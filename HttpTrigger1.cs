@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.Azure.Cosmos;
 using Company.models;
+using System.Text;
 
 namespace Company.Function
 {
@@ -70,7 +71,7 @@ namespace Company.Function
                             newLocation = (long)command.ExecuteScalar();
                         }
 
-                        sql  =  "SELECT CT.SYS_CHANGE_OPERATION, C.CityID, C.CityName, C.StateProvinceID, C.LatestRecordedPopulation, C.LastEditedBy " +
+                        sql  =  "SELECT CT.SYS_CHANGE_OPERATION, CT.CityID, C.CityName, C.StateProvinceID, C.LatestRecordedPopulation, C.LastEditedBy " +
                                 "FROM Application.Cities AS C " +
                                $"RIGHT OUTER JOIN CHANGETABLE(CHANGES Application.Cities, {readItem.syncLocation}) AS CT "+
                                 "ON C.CityID = CT.CityID;";
@@ -86,47 +87,103 @@ namespace Company.Function
                                     connectionForDest.Open();
                                     while (reader.Read())
                                     {
-                                        String sqlAction = $"UPDATE Application.Cities SET ";
-                                                                                        // CityName = '{reader.GetString(reader.GetOrdinal("CityName"))}', " +
-                                                                                        //  $"StateProvinceID = '{reader.GetString(reader.GetOrdinal("StateProvinceID"))}' "+
-                                                                                         //$"Location = '{reader.GetString(reader.GetOrdinal("Location"))}' "+
-                                                                                        //  $"LatestRecordedPopulation = {reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))} "+
-                                                                                        //  $"LastEditedBy = {reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} "+
-                                        
-                                        if (!reader.IsDBNull(reader.GetOrdinal("CityName")))
+                                        string sqlAction = string.Empty;
+
+                                        //DELETE
+                                        if (reader.GetString(reader.GetOrdinal("SYS_CHANGE_OPERATION")) == "D")
                                         {
-                                            sqlAction += $"CityName = '{reader.GetString(reader.GetOrdinal("CityName")).Replace("'", "''")}', ";
+                                            sqlAction = $"DELETE FROM Application.Cities ";
+                                            sqlAction += $"WHERE CityID = {reader.GetInt32(reader.GetOrdinal("CityID")).ToString()}";
                                         }
-                                        else
+
+                                        // INSERT
+                                        if (reader.GetString(reader.GetOrdinal("SYS_CHANGE_OPERATION")) == "I")
                                         {
-                                            sqlAction += "CityName = NULL, ";
-                                        }   
-                                        if (!reader.IsDBNull(reader.GetOrdinal("StateProvinceID")))
-                                        {
-                                            sqlAction += $"StateProvinceID = {reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, ";
+                                            sqlAction = $"INSERT INTO Application.Cities (CityID, CityName, StateProvinceID, LatestRecordedPopulation, LastEditedBy) VALUES (";
+
+                                            if (!reader.IsDBNull(reader.GetOrdinal("CityID")))
+                                            {
+                                                sqlAction += $"{reader.GetInt32(reader.GetOrdinal("CityID"))}, ";
+                                            }                      
+                                            else
+                                            {
+                                                sqlAction += "NULL, ";
+                                            }              
+                                            if (!reader.IsDBNull(reader.GetOrdinal("CityName")))
+                                            {
+                                                sqlAction += $"'{reader.GetString(reader.GetOrdinal("CityName")).Replace("'", "''")}', ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("StateProvinceID")))
+                                            {
+                                                sqlAction += $"{reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("LatestRecordedPopulation")))
+                                            {
+                                                sqlAction += $"{reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("LastEditedBy")))
+                                            {
+                                                sqlAction += $"{reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "NULL";
+                                            }   
+                                            sqlAction += $")";
                                         }
-                                        else
+
+                                        //UPDATES
+                                        if (reader.GetString(reader.GetOrdinal("SYS_CHANGE_OPERATION")) == "U")
                                         {
-                                            sqlAction += "StateProvinceID = NULL, ";
-                                        }   
-                                        if (!reader.IsDBNull(reader.GetOrdinal("LatestRecordedPopulation")))
-                                        {
-                                            sqlAction += $"LatestRecordedPopulation = {reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, ";
+                                            sqlAction = $"UPDATE Application.Cities SET ";
+                                            
+                                            if (!reader.IsDBNull(reader.GetOrdinal("CityName")))
+                                            {
+                                                sqlAction += $"CityName = '{reader.GetString(reader.GetOrdinal("CityName")).Replace("'", "''")}', ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "CityName = NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("StateProvinceID")))
+                                            {
+                                                sqlAction += $"StateProvinceID = {reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "StateProvinceID = NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("LatestRecordedPopulation")))
+                                            {
+                                                sqlAction += $"LatestRecordedPopulation = {reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "LatestRecordedPopulation = NULL, ";
+                                            }   
+                                            if (!reader.IsDBNull(reader.GetOrdinal("LastEditedBy")))
+                                            {
+                                                sqlAction += $"LastEditedBy = {reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} ";
+                                            }
+                                            else
+                                            {
+                                                sqlAction += "LastEditedBy = NULL";
+                                            }   
+                                            sqlAction += $"WHERE CityID = {reader.GetInt32(reader.GetOrdinal("CityID")).ToString()}";
                                         }
-                                        else
-                                        {
-                                            sqlAction += "LatestRecordedPopulation = NULL, ";
-                                        }   
-                                        if (!reader.IsDBNull(reader.GetOrdinal("LastEditedBy")))
-                                        {
-                                            sqlAction += $"LastEditedBy = {reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} ";
-                                        }
-                                        else
-                                        {
-                                            sqlAction += "LastEditedBy = NULL, ";
-                                        }   
-                                        sqlAction += $"WHERE CityID = {reader.GetInt32(reader.GetOrdinal("CityID")).ToString()}";
-                                        
+
                                         using (SqlCommand commandAction = new SqlCommand(sqlAction, connectionForDest))
                                         {
                                             commandAction.ExecuteNonQuery();
@@ -162,66 +219,85 @@ namespace Company.Function
                             {
                                 using (SqlConnection connectionForDest = new SqlConnection(builderForDest.ConnectionString))
                                 {
+                                    int count=0;
+                                    StringBuilder sb = new StringBuilder();
                                     connectionForDest.Open();
                                     while (reader.Read())
                                     {
-                                        String sqlAction = $"INSERT INTO Application.Cities (CityID, CityName, StateProvinceID, LatestRecordedPopulation, LastEditedBy) VALUES (";
+                                        if (count == 0)
+                                        {
+                                            sb.Append($"INSERT INTO Application.Cities (CityID, CityName, StateProvinceID, LatestRecordedPopulation, LastEditedBy) VALUES (");
+                                        }
+                                        else
+                                        {
+                                            sb.Append(", (");
+                                        }
 
-                                                            // $"{reader.GetInt32(reader.GetOrdinal("CityID"))}, " +
-                                                            // $"'{reader.GetString(reader.GetOrdinal("CityName"))}', " +
-                                                            // $"{reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, " +
-                                                            // //$"{reader.GetInt32(reader.GetOrdinal("Location")).ToString()}, " +
-                                                            // //$"{reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, " +
-                                                            // $"{reader.GetInt32(reader.GetOrdinal("LastEditedBy"))}" +
-                                                            // ")";
                                         if (!reader.IsDBNull(reader.GetOrdinal("CityID")))
                                         {
-                                            sqlAction += $"{reader.GetInt32(reader.GetOrdinal("CityID"))}, ";
+                                             sb.Append($"{reader.GetInt32(reader.GetOrdinal("CityID"))}, ");
                                         }                      
                                         else
                                         {
-                                            sqlAction += "NULL, ";
+                                            sb.Append("NULL, ");
                                         }              
                                         if (!reader.IsDBNull(reader.GetOrdinal("CityName")))
                                         {
-                                            sqlAction += $"'{reader.GetString(reader.GetOrdinal("CityName")).Replace("'", "''")}', ";
+                                            sb.Append($"'{reader.GetString(reader.GetOrdinal("CityName")).Replace("'", "''")}', ");
                                         }
                                         else
                                         {
-                                            sqlAction += "NULL, ";
+                                            sb.Append("NULL, ");
                                         }   
                                         if (!reader.IsDBNull(reader.GetOrdinal("StateProvinceID")))
                                         {
-                                            sqlAction += $"{reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, ";
+                                            sb.Append($"{reader.GetInt32(reader.GetOrdinal("StateProvinceID"))}, ");
                                         }
                                         else
                                         {
-                                            sqlAction += "NULL, ";
+                                            sb.Append("NULL, ");
                                         }   
                                         if (!reader.IsDBNull(reader.GetOrdinal("LatestRecordedPopulation")))
                                         {
-                                            sqlAction += $"{reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, ";
+                                            sb.Append($"{reader.GetInt64(reader.GetOrdinal("LatestRecordedPopulation"))}, ");
                                         }
                                         else
                                         {
-                                            sqlAction += "NULL, ";
+                                            sb.Append("NULL, ");
                                         }   
                                         if (!reader.IsDBNull(reader.GetOrdinal("LastEditedBy")))
                                         {
-                                            sqlAction += $"{reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} ";
+                                            sb.Append($"{reader.GetInt32(reader.GetOrdinal("LastEditedBy"))} ");
                                         }
                                         else
                                         {
-                                            sqlAction += "NULL, ";
+                                            sb.Append("NULL, ");
                                         }   
-                                        sqlAction += $")";
-                                        Console.WriteLine(sqlAction);
-                                        using (SqlCommand commandAction = new SqlCommand(sqlAction, connectionForDest))
+                                        sb.Append($")");
+                                        
+                                        if (count == 500)
                                         {
-                                            commandAction.ExecuteNonQuery();
+                                            using (SqlCommand commandAction = new SqlCommand(sb.ToString(), connectionForDest))
+                                            {
+                                                commandAction.ExecuteNonQuery();
+                                            }
+                                            sb.Clear();
+                                            count = 0;
+                                        }
+                                        else
+                                        {
+                                            count++;
                                         }
 
+
+
                                     }
+                                    
+                                    using (SqlCommand commandAction = new SqlCommand(sb.ToString(), connectionForDest))
+                                    {
+                                        commandAction.ExecuteNonQuery();
+                                    }
+                                    
                                 }
                                 
                             }
