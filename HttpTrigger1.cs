@@ -11,6 +11,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Azure.Cosmos;
 using Company.models;
 using System.Text;
+using System.Configuration;
 
 namespace Company.Function
 {
@@ -43,7 +44,7 @@ namespace Company.Function
 
                 builderForSource.DataSource = "sql-source.eastus.cloudapp.azure.com";
                 builderForSource.UserID = "mgarner";
-                builderForSource.Password = "M!2jf@nlubgm";
+                builderForSource.Password = ConfigurationManager.AppSettings["Password"];
                 builderForSource.InitialCatalog = "wwi-1";
                 builderForSource.Authentication = SqlAuthenticationMethod.SqlPassword;
                 builderForSource.TrustServerCertificate = true;
@@ -53,7 +54,7 @@ namespace Company.Function
 
                 builderForDest.DataSource = "sql-etl-dest.database.windows.net";
                 builderForDest.UserID = "mgarner";
-                builderForDest.Password = "M!2jf@nlubgm";
+                builderForDest.Password = ConfigurationManager.AppSettings["Password"];
                 builderForDest.InitialCatalog = "wwi-1-dest";
                 builderForDest.Authentication = SqlAuthenticationMethod.SqlPassword;
                 builderForDest.TrustServerCertificate = true;
