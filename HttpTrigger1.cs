@@ -27,9 +27,10 @@ namespace Company.Function
 
             try
             {
+                var test = ConfigurationManager.AppSettings["COSMOS_KEY"];
                 using CosmosClient cosmosClient = new(
                     accountEndpoint: "https://sql-etl.documents.azure.com:443/",
-                    authKeyOrResourceToken: "0JqicxXfrc6HDNfTWSWhOW9X9mreKN73qL1hBYwo4IbGZB23Xwu1NTROAH2CHj6eezPa2MoSYqpYACDbMohebA=="
+                    authKeyOrResourceToken: Environment.GetEnvironmentVariable("COSMOS_KEY")
                 );
 
                 var container = cosmosClient.GetContainer("tracking-db", "tracking");
@@ -44,7 +45,7 @@ namespace Company.Function
 
                 builderForSource.DataSource = "sql-source.eastus.cloudapp.azure.com";
                 builderForSource.UserID = "mgarner";
-                builderForSource.Password = ConfigurationManager.AppSettings["Password"];
+                builderForSource.Password = Environment.GetEnvironmentVariable("SQL_PASSWORD");
                 builderForSource.InitialCatalog = "wwi-1";
                 builderForSource.Authentication = SqlAuthenticationMethod.SqlPassword;
                 builderForSource.TrustServerCertificate = true;
@@ -54,7 +55,7 @@ namespace Company.Function
 
                 builderForDest.DataSource = "sql-etl-dest.database.windows.net";
                 builderForDest.UserID = "mgarner";
-                builderForDest.Password = ConfigurationManager.AppSettings["Password"];
+                builderForDest.Password = Environment.GetEnvironmentVariable("SQL_PASSWORD");
                 builderForDest.InitialCatalog = "wwi-1-dest";
                 builderForDest.Authentication = SqlAuthenticationMethod.SqlPassword;
                 builderForDest.TrustServerCertificate = true;
